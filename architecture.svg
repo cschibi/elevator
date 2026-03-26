@@ -1,0 +1,479 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="760"
+     font-family="'Segoe UI', Arial, sans-serif" font-size="13">
+
+  <defs>
+    <!-- Drop shadow filter -->
+    <filter id="shadow" x="-4%" y="-4%" width="112%" height="112%">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-color="#00000018"/>
+    </filter>
+
+    <!-- Arrow markers -->
+    <marker id="arr"   markerWidth="8" markerHeight="6" refX="7.5" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#2c3e50"/>
+    </marker>
+    <marker id="arr-g" markerWidth="8" markerHeight="6" refX="7.5" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#888"/>
+    </marker>
+    <marker id="arr-r" markerWidth="8" markerHeight="6" refX="7.5" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#c0392b"/>
+    </marker>
+    <marker id="arr-p" markerWidth="8" markerHeight="6" refX="7.5" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#6c3483"/>
+    </marker>
+  </defs>
+
+  <!-- ═══ BACKGROUND ════════════════════════════════════════════ -->
+  <rect width="960" height="760" fill="#f0f4f7"/>
+
+  <!-- ═══ TITLE ════════════════════════════════════════════════ -->
+  <text x="400" y="23" text-anchor="middle" font-size="17" font-weight="bold"
+        fill="#1a252f">Elevator Simulator — Architecture Block Diagram</text>
+  <text x="400" y="38" text-anchor="middle" font-size="10" fill="#7f8c8d">
+    C99 · Discrete-Tick · Pluggable Scheduler (Strategy Pattern) · 5 floors / 2 elevators (compile-time constants)
+  </text>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       I/O — INPUTS (top-left)
+       ═══════════════════════════════════════════════════════════ -->
+  <text x="205" y="50" text-anchor="middle" font-size="9" font-weight="bold"
+        fill="#1e8449">INPUTS</text>
+
+  <!-- stdin -->
+  <rect x="20" y="55" width="155" height="52" rx="6"
+        fill="#d5f5e3" stroke="#1e8449" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="97" y="74" text-anchor="middle" font-size="12" font-weight="bold"
+        fill="#145a32">stdin</text>
+  <text x="97" y="89" text-anchor="middle" font-size="9" fill="#2e7d32">
+    r · s · a · p · m · S · q · ?
+  </text>
+  <text x="97" y="101" text-anchor="middle" font-size="9" fill="#555">
+    (hall call, step, auto, status…)
+  </text>
+
+  <!-- argv / CLI flags -->
+  <rect x="188" y="55" width="220" height="52" rx="6"
+        fill="#d5f5e3" stroke="#1e8449" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="298" y="74" text-anchor="middle" font-size="12" font-weight="bold"
+        fill="#145a32">argv / CLI flags</text>
+  <text x="298" y="89" text-anchor="middle" font-size="9" fill="#555">
+    --scheduler &lt;fcfs|look|sstf&gt;
+  </text>
+  <text x="298" y="101" text-anchor="middle" font-size="9" fill="#555">
+    --log &lt;path&gt;  · --debug  · --tick-ms &lt;ms&gt;
+  </text>
+
+  <!-- ═══ I/O OUTPUTS (right column) ══════════════════════════ -->
+  <text x="872" y="137" text-anchor="middle" font-size="9" font-weight="bold"
+        fill="#1e8449">OUTPUTS</text>
+
+  <!-- stdout -->
+  <rect x="800" y="143" width="148" height="72" rx="6"
+        fill="#d5f5e3" stroke="#1e8449" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="874" y="163" text-anchor="middle" font-size="12" font-weight="bold"
+        fill="#145a32">stdout</text>
+  <text x="874" y="178" text-anchor="middle" font-size="9" fill="#555">
+    CLI prompt · status display
+  </text>
+  <text x="874" y="191" text-anchor="middle" font-size="9" fill="#555">
+    metrics · help text
+  </text>
+  <text x="874" y="204" text-anchor="middle" font-size="9" fill="#555">
+    (printf / building_print_*)
+  </text>
+
+  <!-- log file -->
+  <rect x="800" y="268" width="148" height="82" rx="6"
+        fill="#d5f5e3" stroke="#1e8449" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="874" y="289" text-anchor="middle" font-size="12" font-weight="bold"
+        fill="#145a32">log file (optional)</text>
+  <text x="874" y="304" text-anchor="middle" font-size="9" fill="#555">
+    elevator.log
+  </text>
+  <text x="874" y="317" text-anchor="middle" font-size="9" fill="#555">
+    tee from logger when
+  </text>
+  <text x="874" y="330" text-anchor="middle" font-size="9" fill="#555">
+    --log &lt;path&gt; is set
+  </text>
+  <text x="874" y="343" text-anchor="middle" font-size="9" fill="#777">
+    (fopen / fprintf)
+  </text>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       ENTRY POINT — main.c
+       ═══════════════════════════════════════════════════════════ -->
+  <rect x="20" y="143" width="630" height="72" rx="8"
+        fill="#d6eaf8" stroke="#1a5276" stroke-width="2" filter="url(#shadow)"/>
+  <text x="335" y="164" text-anchor="middle" font-size="13" font-weight="bold"
+        fill="#1a252f">main.c  —  Interactive CLI Entry Point</text>
+  <text x="335" y="180" text-anchor="middle" font-size="10" fill="#1a5276">
+    parse args · logger_init() · config_validate() · building_init() · run_cli() · building_print_metrics() · building_destroy()
+  </text>
+  <text x="335" y="195" text-anchor="middle" font-size="9" fill="#555">
+    parse_scheduler() · parse_direction() · fgets(stdin) · sscanf() · printf(stdout) · atoi()
+  </text>
+  <text x="335" y="208" text-anchor="middle" font-size="9" fill="#7f8c8d">
+    #include: config.h  building.h  logger.h  scheduler.h  &lt;stdio.h&gt;  &lt;stdlib.h&gt;  &lt;string.h&gt;
+  </text>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       CORE LAYER
+       ═══════════════════════════════════════════════════════════ -->
+  <text x="12" y="262" font-size="9" font-weight="bold" font-style="italic"
+        fill="#2471a3">CORE LAYER</text>
+
+  <!-- config.c -->
+  <rect x="20" y="268" width="185" height="82" rx="7"
+        fill="#ebf5fb" stroke="#2471a3" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="112" y="288" text-anchor="middle" font-size="12" font-weight="bold"
+        fill="#1a5276">config.c / config.h</text>
+  <text x="112" y="303" text-anchor="middle" font-size="9" fill="#555">
+    SimConfig struct
+  </text>
+  <text x="112" y="316" text-anchor="middle" font-size="9" fill="#555">
+    config_validate()
+  </text>
+  <text x="112" y="329" text-anchor="middle" font-size="9" fill="#555">
+    config_print()
+  </text>
+  <text x="112" y="342" text-anchor="middle" font-size="9" fill="#888">
+    MAX_FLOORS=5  MAX_ELEVATORS=2
+  </text>
+
+  <!-- building.c — COORDINATOR (prominent) -->
+  <rect x="225" y="268" width="305" height="82" rx="7"
+        fill="#d4e6f1" stroke="#154360" stroke-width="2.5" filter="url(#shadow)"/>
+  <text x="377" y="288" text-anchor="middle" font-size="13" font-weight="bold"
+        fill="#154360">building.c / building.h</text>
+  <text x="377" y="303" text-anchor="middle" font-size="9" fill="#154360"
+        font-style="italic">«coordinator»  owns elevators · RequestQueue · sched · tick</text>
+  <text x="377" y="316" text-anchor="middle" font-size="9" fill="#333">
+    building_init() · building_tick() · building_request()
+  </text>
+  <text x="377" y="329" text-anchor="middle" font-size="9" fill="#333">
+    building_set_scheduler() · building_print_status()
+  </text>
+  <text x="377" y="342" text-anchor="middle" font-size="9" fill="#555">
+    circular RequestQueue[MAX_REQUESTS=64] · total_requests · total_served
+  </text>
+
+  <!-- logger.c -->
+  <rect x="550" y="268" width="195" height="82" rx="7"
+        fill="#ebf5fb" stroke="#2471a3" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="647" y="288" text-anchor="middle" font-size="12" font-weight="bold"
+        fill="#1a5276">logger.c / logger.h</text>
+  <text x="647" y="303" text-anchor="middle" font-size="9" fill="#555">
+    Levelled audit-trail logging
+  </text>
+  <text x="647" y="316" text-anchor="middle" font-size="9" fill="#555">
+    DEBUG · INFO · WARN · ERROR
+  </text>
+  <text x="647" y="329" text-anchor="middle" font-size="9" fill="#555">
+    logger_init() · logger_log()
+  </text>
+  <text x="647" y="342" text-anchor="middle" font-size="9" fill="#555">
+    logger_set_tick() · logger_close()
+  </text>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       DOMAIN LAYER
+       ═══════════════════════════════════════════════════════════ -->
+  <text x="12" y="398" font-size="9" font-weight="bold" font-style="italic"
+        fill="#9a7d0a">DOMAIN LAYER</text>
+
+  <!-- scheduler.c -->
+  <rect x="55" y="405" width="265" height="82" rx="7"
+        fill="#fef9e7" stroke="#9a7d0a" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="187" y="424" text-anchor="middle" font-size="12" font-weight="bold"
+        fill="#7d6608">scheduler.c / scheduler.h</text>
+  <text x="187" y="439" text-anchor="middle" font-size="9" fill="#7d6608"
+        font-style="italic">«strategy vtable»  SchedulerOps</text>
+  <text x="187" y="453" text-anchor="middle" font-size="9" fill="#555">
+    assign() · tick_hook() · get_name()
+  </text>
+  <text x="187" y="466" text-anchor="middle" font-size="9" fill="#555">
+    scheduler_get() · scheduler_list()
+  </text>
+  <text x="187" y="479" text-anchor="middle" font-size="9" fill="#888">
+    registry[]  · runtime algorithm swap
+  </text>
+
+  <!-- elevator.c -->
+  <rect x="360" y="405" width="265" height="82" rx="7"
+        fill="#fef9e7" stroke="#9a7d0a" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="492" y="424" text-anchor="middle" font-size="12" font-weight="bold"
+        fill="#7d6608">elevator.c / elevator.h</text>
+  <text x="492" y="439" text-anchor="middle" font-size="9" fill="#555">
+    Per-elevator state machine
+  </text>
+  <text x="492" y="453" text-anchor="middle" font-size="9" fill="#555">
+    IDLE → MOVING → DOOR_OPEN → IDLE
+  </text>
+  <text x="492" y="466" text-anchor="middle" font-size="9" fill="#555">
+    elevator_tick() · elevator_add_stop()
+  </text>
+  <text x="492" y="479" text-anchor="middle" font-size="9" fill="#888">
+    stops[MAX_FLOORS] · total_distance · uint8_t
+  </text>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SCHEDULER IMPLEMENTATIONS
+       ═══════════════════════════════════════════════════════════ -->
+  <text x="12" y="538" font-size="9" font-weight="bold" font-style="italic"
+        fill="#c0392b">SCHEDULER IMPLEMENTATIONS  (registry[] in scheduler.c)</text>
+
+  <!-- FCFS -->
+  <rect x="20" y="545" width="120" height="52" rx="6"
+        fill="#fdedec" stroke="#c0392b" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="80" y="565" text-anchor="middle" font-size="12" font-weight="bold"
+        fill="#c0392b">FCFS</text>
+  <text x="80" y="579" text-anchor="middle" font-size="9" fill="#555">First Come</text>
+  <text x="80" y="591" text-anchor="middle" font-size="9" fill="#555">First Served</text>
+
+  <!-- LOOK -->
+  <rect x="155" y="545" width="120" height="52" rx="6"
+        fill="#fdedec" stroke="#c0392b" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="215" y="565" text-anchor="middle" font-size="12" font-weight="bold"
+        fill="#c0392b">LOOK</text>
+  <text x="215" y="579" text-anchor="middle" font-size="9" fill="#555">Bi-directional</text>
+  <text x="215" y="591" text-anchor="middle" font-size="9" fill="#555">scan  (default)</text>
+
+  <!-- SSTF -->
+  <rect x="290" y="545" width="120" height="52" rx="6"
+        fill="#fdedec" stroke="#c0392b" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="350" y="565" text-anchor="middle" font-size="12" font-weight="bold"
+        fill="#c0392b">SSTF</text>
+  <text x="350" y="579" text-anchor="middle" font-size="9" fill="#555">Shortest Seek</text>
+  <text x="350" y="591" text-anchor="middle" font-size="9" fill="#555">Time First</text>
+
+  <!-- Makefile -->
+  <rect x="455" y="545" width="175" height="52" rx="6"
+        fill="#f2f3f4" stroke="#7f8c8d" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="542" y="565" text-anchor="middle" font-size="12" font-weight="bold"
+        fill="#555">Makefile</text>
+  <text x="542" y="579" text-anchor="middle" font-size="9" fill="#777">
+    sim · test · all · clean
+  </text>
+  <text x="542" y="591" text-anchor="middle" font-size="9" fill="#777">
+    -std=c99  -Wall  -Wextra
+  </text>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       C STANDARD LIBRARY
+       ═══════════════════════════════════════════════════════════ -->
+  <text x="12" y="654" font-size="9" font-weight="bold" font-style="italic"
+        fill="#6c3483">C STANDARD LIBRARY  (C99) — included by all modules</text>
+
+  <rect x="20" y="660" width="760" height="65" rx="7"
+        fill="#f4ecf7" stroke="#6c3483" stroke-width="1.5" filter="url(#shadow)"/>
+
+  <rect x="35"  y="675" width="100" height="36" rx="4" fill="#e8daef" stroke="#6c3483" stroke-width="1"/>
+  <text x="85"  y="689" text-anchor="middle" font-size="10" font-weight="bold" fill="#4a235a">&lt;stdio.h&gt;</text>
+  <text x="85"  y="703" text-anchor="middle" font-size="9" fill="#6c3483">printf · fgets · FILE</text>
+
+  <rect x="148" y="675" width="108" height="36" rx="4" fill="#e8daef" stroke="#6c3483" stroke-width="1"/>
+  <text x="202" y="689" text-anchor="middle" font-size="10" font-weight="bold" fill="#4a235a">&lt;stdlib.h&gt;</text>
+  <text x="202" y="703" text-anchor="middle" font-size="9" fill="#6c3483">atoi · abs · EXIT_*</text>
+
+  <rect x="270" y="675" width="108" height="36" rx="4" fill="#e8daef" stroke="#6c3483" stroke-width="1"/>
+  <text x="324" y="689" text-anchor="middle" font-size="10" font-weight="bold" fill="#4a235a">&lt;string.h&gt;</text>
+  <text x="324" y="703" text-anchor="middle" font-size="9" fill="#6c3483">memset · strncpy · strlen</text>
+
+  <rect x="392" y="675" width="105" height="36" rx="4" fill="#e8daef" stroke="#6c3483" stroke-width="1"/>
+  <text x="444" y="689" text-anchor="middle" font-size="10" font-weight="bold" fill="#4a235a">&lt;stdint.h&gt;</text>
+  <text x="444" y="703" text-anchor="middle" font-size="9" fill="#6c3483">uint8_t  (stop flags)</text>
+
+  <rect x="511" y="675" width="105" height="36" rx="4" fill="#e8daef" stroke="#6c3483" stroke-width="1"/>
+  <text x="563" y="689" text-anchor="middle" font-size="10" font-weight="bold" fill="#4a235a">&lt;stddef.h&gt;</text>
+  <text x="563" y="703" text-anchor="middle" font-size="9" fill="#6c3483">size_t · NULL</text>
+
+  <rect x="630" y="675" width="135" height="36" rx="4" fill="#e8daef" stroke="#6c3483" stroke-width="1"/>
+  <text x="697" y="689" text-anchor="middle" font-size="10" font-weight="bold" fill="#4a235a">&lt;stdarg.h&gt; / format attr</text>
+  <text x="697" y="703" text-anchor="middle" font-size="9" fill="#6c3483">va_list · __attribute__((format))</text>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       TEST RUNNER (standalone, right column)
+       ═══════════════════════════════════════════════════════════ -->
+  <rect x="800" y="405" width="148" height="208" rx="7"
+        fill="#fdfefe" stroke="#7f8c8d" stroke-width="1.5"
+        stroke-dasharray="6,3" filter="url(#shadow)"/>
+  <text x="874" y="426" text-anchor="middle" font-size="12" font-weight="bold"
+        fill="#555">test_runner.c</text>
+  <text x="874" y="441" text-anchor="middle" font-size="9" fill="#777">
+    standalone harness
+  </text>
+  <text x="874" y="458" text-anchor="middle" font-size="13" font-weight="bold"
+        fill="#c0392b">30 unit tests</text>
+  <text x="874" y="472" text-anchor="middle" font-size="9" fill="#555">
+    ASSERT_EQ · ASSERT_TRUE
+  </text>
+  <text x="874" y="485" text-anchor="middle" font-size="9" fill="#555">
+    no external dependencies
+  </text>
+  <line x1="812" y1="495" x2="942" y2="495" stroke="#ddd" stroke-width="1"/>
+  <text x="874" y="509" text-anchor="middle" font-size="9" fill="#777">Tests:</text>
+  <text x="874" y="522" text-anchor="middle" font-size="9" fill="#555">config · logger</text>
+  <text x="874" y="535" text-anchor="middle" font-size="9" fill="#555">elevator state machine</text>
+  <text x="874" y="548" text-anchor="middle" font-size="9" fill="#555">building tick / requests</text>
+  <text x="874" y="561" text-anchor="middle" font-size="9" fill="#555">FCFS · LOOK · SSTF</text>
+  <text x="874" y="577" text-anchor="middle" font-size="9" fill="#777">
+    LOG_ERROR during run
+  </text>
+  <text x="874" y="590" text-anchor="middle" font-size="9" fill="#777">
+    (suppress log noise)
+  </text>
+  <text x="874" y="606" text-anchor="middle" font-size="9" fill="#888">
+    ./elevator_test  |  make test
+  </text>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       LEGEND
+       ═══════════════════════════════════════════════════════════ -->
+  <rect x="800" y="625" width="148" height="118" rx="6"
+        fill="#fff" stroke="#bdc3c7" stroke-width="1"/>
+  <text x="874" y="642" text-anchor="middle" font-size="11" font-weight="bold"
+        fill="#2c3e50">Legend</text>
+  <line x1="810" y1="648" x2="940" y2="648" stroke="#eee" stroke-width="1"/>
+
+  <line x1="815" y1="662" x2="852" y2="662" stroke="#2c3e50" stroke-width="1.8"
+        marker-end="url(#arr)"/>
+  <text x="858" y="666" font-size="10" fill="#333">calls / owns</text>
+
+  <line x1="815" y1="680" x2="852" y2="680" stroke="#888" stroke-width="1.5"
+        stroke-dasharray="4,2" marker-end="url(#arr-g)"/>
+  <text x="858" y="684" font-size="10" fill="#333">includes / uses</text>
+
+  <line x1="815" y1="698" x2="852" y2="698" stroke="#c0392b" stroke-width="1.8"
+        marker-end="url(#arr-r)"/>
+  <text x="858" y="702" font-size="10" fill="#333">implements</text>
+
+  <line x1="815" y1="716" x2="852" y2="716" stroke="#6c3483" stroke-width="1.5"
+        marker-end="url(#arr-p)"/>
+  <text x="858" y="720" font-size="10" fill="#333">links stdlib</text>
+
+  <rect x="815" y="727" width="11" height="11" rx="2"
+        fill="#d5f5e3" stroke="#1e8449" stroke-width="1"/>
+  <text x="858" y="737" font-size="10" fill="#333">I/O boundary</text>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       ARROWS
+       ═══════════════════════════════════════════════════════════ -->
+
+  <!-- 1. stdin → main.c -->
+  <line x1="97" y1="107" x2="97" y2="143"
+        stroke="#2c3e50" stroke-width="1.8" marker-end="url(#arr)"/>
+
+  <!-- 2. argv → main.c -->
+  <line x1="298" y1="107" x2="298" y2="143"
+        stroke="#2c3e50" stroke-width="1.8" marker-end="url(#arr)"/>
+
+  <!-- 3. main.c → stdout (rightward, exits main.c right edge at y=172) -->
+  <line x1="650" y1="172" x2="800" y2="172"
+        stroke="#2c3e50" stroke-width="1.8" marker-end="url(#arr)"/>
+  <text x="725" y="168" text-anchor="middle" font-size="8" fill="#2c3e50">printf/status</text>
+
+  <!-- 4. main.c → config.c (downward at x=112) -->
+  <line x1="112" y1="215" x2="112" y2="268"
+        stroke="#2c3e50" stroke-width="1.8" marker-end="url(#arr)"/>
+
+  <!-- 5. main.c → building.c (downward at x=360) -->
+  <line x1="360" y1="215" x2="360" y2="268"
+        stroke="#2c3e50" stroke-width="1.8" marker-end="url(#arr)"/>
+  <text x="340" y="245" font-size="8" fill="#2c3e50">init/tick</text>
+
+  <!-- 6. main.c → logger.c (downward at x=600, within both boxes) -->
+  <line x1="600" y1="215" x2="600" y2="268"
+        stroke="#2c3e50" stroke-width="1.8" marker-end="url(#arr)"/>
+
+  <!-- 7. config.c → building.c (short rightward, dashed — SimConfig embedded) -->
+  <line x1="205" y1="309" x2="225" y2="309"
+        stroke="#888" stroke-width="1.5" stroke-dasharray="4,2"
+        marker-end="url(#arr-g)"/>
+
+  <!-- 8. building.c → logger.c (short rightward, dashed — uses log macros) -->
+  <line x1="530" y1="309" x2="550" y2="309"
+        stroke="#888" stroke-width="1.5" stroke-dasharray="4,2"
+        marker-end="url(#arr-g)"/>
+  <text x="540" y="304" font-size="8" fill="#888">log_*()</text>
+
+  <!-- 9. logger.c → stdout: exit logger right (745,295), go right to 770,
+          up to 770,172, right to stdout left (800,172) — uses different y than arrow 3 -->
+  <path d="M 745,285 L 772,285 L 772,192 L 800,192"
+        stroke="#2c3e50" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+  <text x="776" y="240" font-size="8" fill="#2c3e50" text-anchor="middle">tee</text>
+
+  <!-- 10. logger.c → log file (rightward from logger right to logfile left) -->
+  <line x1="745" y1="325" x2="800" y2="325"
+        stroke="#2c3e50" stroke-width="1.8" marker-end="url(#arr)"/>
+
+  <!-- 11. building.c → scheduler.c (bent: down-left) -->
+  <path d="M 260,350 L 260,385 L 187,385 L 187,405"
+        stroke="#2c3e50" stroke-width="1.8" fill="none" marker-end="url(#arr)"/>
+  <text x="220" y="381" font-size="8" fill="#2c3e50">assign/tick</text>
+
+  <!-- 12. building.c → elevator.c (bent: down-right) -->
+  <path d="M 475,350 L 475,385 L 492,385 L 492,405"
+        stroke="#2c3e50" stroke-width="1.8" fill="none" marker-end="url(#arr)"/>
+  <text x="490" y="381" font-size="8" fill="#2c3e50">tick()</text>
+
+  <!-- 13. scheduler.c → elevator.c (dashed: assign() takes Elevator*) -->
+  <line x1="320" y1="446" x2="360" y2="446"
+        stroke="#888" stroke-width="1.5" stroke-dasharray="4,2"
+        marker-end="url(#arr-g)"/>
+  <text x="340" y="442" font-size="8" fill="#888" text-anchor="middle">Elevator*</text>
+
+  <!-- 14. scheduler.c → FCFS (straight down at cx=80) -->
+  <line x1="80" y1="487" x2="80" y2="545"
+        stroke="#c0392b" stroke-width="1.8" marker-end="url(#arr-r)"/>
+
+  <!-- 15. scheduler.c → LOOK (straight down at cx=215) -->
+  <line x1="215" y1="487" x2="215" y2="545"
+        stroke="#c0392b" stroke-width="1.8" marker-end="url(#arr-r)"/>
+
+  <!-- 16. scheduler.c → SSTF (bent right then down) -->
+  <path d="M 295,487 L 295,522 L 350,522 L 350,545"
+        stroke="#c0392b" stroke-width="1.8" fill="none" marker-end="url(#arr-r)"/>
+
+  <!-- Label for impl arrows -->
+  <text x="163" y="514" font-size="8" fill="#c0392b" text-anchor="middle">registry[]</text>
+
+  <!-- 17. FCFS → stdlib -->
+  <line x1="80"  y1="597" x2="80"  y2="660"
+        stroke="#6c3483" stroke-width="1.5" marker-end="url(#arr-p)"/>
+
+  <!-- 18. LOOK → stdlib -->
+  <line x1="215" y1="597" x2="215" y2="660"
+        stroke="#6c3483" stroke-width="1.5" marker-end="url(#arr-p)"/>
+
+  <!-- 19. SSTF → stdlib -->
+  <line x1="350" y1="597" x2="350" y2="660"
+        stroke="#6c3483" stroke-width="1.5" marker-end="url(#arr-p)"/>
+
+  <!-- 20. elevator.c → stdlib (x=445: clear of all impl boxes) -->
+  <line x1="445" y1="487" x2="445" y2="660"
+        stroke="#6c3483" stroke-width="1.5" marker-end="url(#arr-p)"/>
+
+  <!-- 21. logger.c → stdlib (exit right side, go down outside all boxes) -->
+  <path d="M 745,370 L 778,370 L 778,660"
+        stroke="#6c3483" stroke-width="1.5" fill="none" marker-end="url(#arr-p)"/>
+
+  <!-- 22. test_runner → building.c (route above core layer) -->
+  <path d="M 800,422 L 756,422 L 756,254 L 380,254 L 380,268"
+        stroke="#888" stroke-width="1.5" stroke-dasharray="4,2"
+        fill="none" marker-end="url(#arr-g)"/>
+
+  <!-- 23. test_runner → elevator.c (horizontal leftward at y=462) -->
+  <line x1="800" y1="462" x2="625" y2="462"
+        stroke="#888" stroke-width="1.5" stroke-dasharray="4,2"
+        marker-end="url(#arr-g)"/>
+
+  <!-- 24. test_runner → scheduler.c (route below domain, through impl gap) -->
+  <path d="M 800,502 L 187,502 L 187,487"
+        stroke="#888" stroke-width="1.5" stroke-dasharray="4,2"
+        fill="none" marker-end="url(#arr-g)"/>
+
+  <!-- Label: test_runner exercises -->
+  <text x="665" y="498" font-size="8" fill="#888" text-anchor="middle">tests all modules</text>
+
+</svg>

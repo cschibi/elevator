@@ -1,0 +1,10 @@
+# Compiled objects and binaries
+*.o
+elevator_sim
+elevator_test
+
+# Log files
+*.log
+
+# Archives
+*.zip
