@@ -21,11 +21,12 @@ const char *dir_name(Direction d)
 const char *elev_state_name(ElevatorState s)
 {
     switch (s) {
-        case ELEV_IDLE:      return "IDLE";
-        case ELEV_MOVING:    return "MOVING";
-        case ELEV_DOOR_OPEN: return "DOOR_OPEN";
-        case ELEV_FAULT:     return "FAULT";
-        default:             return "???";
+        case ELEV_IDLE:          return "IDLE";
+        case ELEV_MOVING:        return "MOVING";
+        case ELEV_REPOSITIONING: return "REPOSITIONING";
+        case ELEV_DOOR_OPEN:     return "DOOR_OPEN";
+        case ELEV_FAULT:         return "FAULT";
+        default:                 return "???";
     }
 }
 
@@ -40,6 +41,7 @@ void elevator_init(Elevator *e, int id)
     e->direction     = DIR_IDLE;
     e->door          = DOOR_CLOSED;
     e->state         = ELEV_IDLE;
+    e->idle_ticks    = 0;
     log_info("Elevator %d initialised at floor 0", id);
 }
 
@@ -74,6 +76,20 @@ int elevator_has_stops(const Elevator *e)
     return 0;
 }
 
+/* ── elevator_start_reposition ───────────────────────────── */
+void elevator_start_reposition(Elevator *e, int target_floor)
+{
+    if (!e) return;
+    e->target_floor = target_floor;
+    e->direction    = (target_floor > e->current_floor) ? DIR_UP
+                    : (target_floor < e->current_floor) ? DIR_DOWN
+                    : DIR_IDLE;
+    e->state        = ELEV_REPOSITIONING;
+    e->idle_ticks   = 0;
+    log_info("Elevator %d: repositioning floor %d -> %d (%s)",
+             e->id, e->current_floor, target_floor, dir_name(e->direction));
+}
+
 /* ── Internal: choose next target based on direction ──────── */
 static int next_stop_in_direction(const Elevator *e)
 {
@@ -104,6 +120,20 @@ static int next_stop_in_direction(const Elevator *e)
     return -1;
 }
 
+/* ── Internal: open doors and register a passenger event ─── */
+static int handle_arrival(Elevator *e)
+{
+    elevator_clear_stop(e, e->current_floor);
+    e->door           = DOOR_OPEN;
+    e->door_dwell     = DOOR_DWELL_TICKS;
+    e->state          = ELEV_DOOR_OPEN;
+    e->total_passengers++;
+    e->target_floor   = next_stop_in_direction(e);
+    log_info("Elevator %d: arrived at floor %d – doors open",
+             e->id, e->current_floor);
+    return 1;   /* passenger event */
+}
+
 /* ── elevator_tick ───────────────────────────────────────── */
 int elevator_tick(Elevator *e)
 {
@@ -120,6 +150,7 @@ int elevator_tick(Elevator *e)
         if (e->door_dwell <= 0) {
             e->door  = DOOR_CLOSED;
             e->state = elevator_has_stops(e) ? ELEV_MOVING : ELEV_IDLE;
+            if (e->state == ELEV_IDLE) e->idle_ticks = 0;
             log_info("Elevator %d: doors closed at floor %d",
                      e->id, e->current_floor);
             if (e->state == ELEV_MOVING) {
@@ -134,13 +165,14 @@ int elevator_tick(Elevator *e)
         }
         break;
 
-    /* ── Idle: check if a stop was added ────────────────── */
+    /* ── Idle: count idle ticks; depart when a stop arrives ─ */
     case ELEV_IDLE:
         if (elevator_has_stops(e)) {
+            e->idle_ticks   = 0;
             e->target_floor = next_stop_in_direction(e);
             if (e->target_floor == e->current_floor) {
-                /* already here */
-                goto arrive;
+                passenger_event = handle_arrival(e);
+                break;
             }
             e->direction = (e->target_floor > e->current_floor)
                            ? DIR_UP : DIR_DOWN;
@@ -148,6 +180,53 @@ int elevator_tick(Elevator *e)
             log_info("Elevator %d: departing floor %d -> %d (%s)",
                      e->id, e->current_floor, e->target_floor,
                      dir_name(e->direction));
+        } else {
+            e->idle_ticks++;
+        }
+        break;
+
+    /* ── Repositioning: move to optimal idle position ─────── */
+    case ELEV_REPOSITIONING:
+        /* A real stop was assigned this tick — abandon reposition */
+        if (elevator_has_stops(e)) {
+            e->idle_ticks   = 0;
+            e->target_floor = next_stop_in_direction(e);
+            e->state        = ELEV_MOVING;
+            if (e->target_floor > e->current_floor)
+                e->direction = DIR_UP;
+            else if (e->target_floor < e->current_floor)
+                e->direction = DIR_DOWN;
+            log_info("Elevator %d: reposition abandoned at floor %d – serving floor %d",
+                     e->id, e->current_floor, e->target_floor);
+            /* If the stop is right here, serve it immediately */
+            if (e->target_floor == e->current_floor)
+                passenger_event = handle_arrival(e);
+            break;
+        }
+        /* Arrived at reposition target? */
+        if (e->target_floor < 0 || e->current_floor == e->target_floor) {
+            e->state     = ELEV_IDLE;
+            e->direction = DIR_IDLE;
+            e->idle_ticks = 0;
+            log_info("Elevator %d: reposition complete at floor %d",
+                     e->id, e->current_floor);
+            break;
+        }
+        /* Advance one floor toward reposition target */
+        if (e->direction == DIR_UP)
+            e->current_floor++;
+        else
+            e->current_floor--;
+        e->total_distance++;
+        log_info("Elevator %d: repositioning at floor %d (target %d)",
+                 e->id, e->current_floor, e->target_floor);
+        /* Check arrival after move */
+        if (e->current_floor == e->target_floor) {
+            e->state      = ELEV_IDLE;
+            e->direction  = DIR_IDLE;
+            e->idle_ticks = 0;
+            log_info("Elevator %d: reposition complete at floor %d",
+                     e->id, e->current_floor);
         }
         break;
 
@@ -156,6 +235,7 @@ int elevator_tick(Elevator *e)
         if (e->target_floor < 0) {
             e->state     = ELEV_IDLE;
             e->direction = DIR_IDLE;
+            e->idle_ticks = 0;
             break;
         }
 
@@ -171,26 +251,16 @@ int elevator_tick(Elevator *e)
                  e->id, e->current_floor,
                  dir_name(e->direction), e->target_floor);
 
-    arrive:
         /* Did we reach a stop? */
         if (e->stops[e->current_floor]) {
-            elevator_clear_stop(e, e->current_floor);
-            e->door        = DOOR_OPEN;
-            e->door_dwell  = DOOR_DWELL_TICKS;
-            e->state       = ELEV_DOOR_OPEN;
-            e->total_passengers++;
-            passenger_event = 1;
-            log_info("Elevator %d: arrived at floor %d – doors open",
-                     e->id, e->current_floor);
-
-            /* Recalculate target after clearing this stop */
-            e->target_floor = next_stop_in_direction(e);
+            passenger_event = handle_arrival(e);
         } else if (e->current_floor == e->target_floor) {
             /* Reached target but stop already cleared (edge case) */
             e->target_floor = next_stop_in_direction(e);
             if (e->target_floor < 0) {
-                e->state     = ELEV_IDLE;
-                e->direction = DIR_IDLE;
+                e->state      = ELEV_IDLE;
+                e->direction  = DIR_IDLE;
+                e->idle_ticks = 0;
             }
         }
         break;
@@ -206,7 +276,7 @@ int elevator_tick(Elevator *e)
 void elevator_print(const Elevator *e)
 {
     if (!e) return;
-    printf("  [E%d] Floor:%d Dir:%-5s State:%-10s Door:%-8s Stops:[",
+    printf("  [E%d] Floor:%d Dir:%-5s State:%-13s Door:%-8s Stops:[",
            e->id,
            e->current_floor,
            dir_name(e->direction),
@@ -214,6 +284,6 @@ void elevator_print(const Elevator *e)
            e->door == DOOR_OPEN ? "OPEN" : "CLOSED");
     for (int i = 0; i < MAX_FLOORS; i++)
         if (e->stops[i]) printf("%d ", i);
-    printf("] dist:%ld pax:%ld\n",
-           e->total_distance, e->total_passengers);
+    printf("] dist:%ld pax:%ld idle:%d\n",
+           e->total_distance, e->total_passengers, e->idle_ticks);
 }
