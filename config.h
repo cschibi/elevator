@@ -12,7 +12,8 @@
 #define MAX_ELEVATORS   6
 #define MAX_REQUESTS    64   /* circular request queue depth  */
 #define MAX_LOG_MSG     256  /* max chars per log line        */
-#define DOOR_DWELL_TICKS 2   /* ticks doors stay open        */
+#define DOOR_DWELL_TICKS      2   /* ticks doors stay open        */
+#define IDLE_REPOSITION_TICKS 10  /* idle ticks before repositioning */
 
 /* ── Scheduler strategy IDs ──────────────────────────────── */
 typedef enum {

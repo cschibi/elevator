@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Elevator Simulator</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:     #0d1117;
+      --panel:  #161b22;
+      --border: #30363d;
+      --text:   #c9d1d9;
+      --muted:  #8b949e;
+      --accent: #58a6ff;
+    }
+
+    body {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 13px;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: grid;
+      grid-template-rows: 40px 1fr 150px;
+      grid-template-columns: 1fr 270px;
+      overflow: hidden;
+    }
+
+    /* ── Header ── */
+    #header {
+      grid-column: 1 / -1;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 14px;
+    }
+    #conn-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #f85149; flex-shrink: 0;
+      transition: background 0.3s;
+    }
+    #conn-dot.on { background: #3fb950; }
+    #header h1 { font-size: 13px; font-weight: bold; color: var(--accent); }
+    #header-meta {
+      margin-left: auto;
+      display: flex; gap: 18px;
+      font-size: 12px; color: var(--muted);
+    }
+    #header-meta b { color: var(--text); }
+
+    /* ── Building pane ── */
+    #building-wrap {
+      grid-row: 2; grid-column: 1;
+      overflow: auto;
+      background: var(--bg);
+      padding: 10px 10px 10px 14px;
+    }
+    #building-svg { display: block; }
+
+    /* CSS transition for smooth elevator movement */
+    [id^="car-"] { transition: transform 0.25s ease-in-out; }
+
+    /* ── Controls pane ── */
+    #controls {
+      grid-row: 2; grid-column: 2;
+      background: var(--panel);
+      border-left: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .sect {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      color: var(--muted);
+      padding-bottom: 5px;
+      border-bottom: 1px solid var(--border);
+    }
+    select, input {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 4px 7px;
+      font: inherit;
+      border-radius: 4px;
+      width: 100%;
+    }
+    .btn {
+      background: #21262d;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 5px 10px;
+      font: inherit;
+      border-radius: 4px;
+      cursor: pointer;
+      width: 100%;
+    }
+    .btn:hover { background: var(--border); }
+    .btn.hi { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+    .btn.hi:hover { background: #388bfd; }
+
+    .dir-row { display: flex; gap: 6px; }
+    .dir-btn {
+      flex: 1; text-align: center;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 4px 0;
+      border-radius: 4px;
+      cursor: pointer;
+      font: inherit; font-size: 12px;
+      user-select: none;
+    }
+    .dir-btn.sel { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+
+    .inline-row { display: flex; gap: 6px; align-items: center; }
+    .inline-row input { width: 66px; flex-shrink: 0; }
+    .inline-row .btn  { flex: 1; }
+
+    /* ── Elevator cards ── */
+    .ecard {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 6px 8px;
+      font-size: 11px;
+    }
+    .ecard + .ecard { margin-top: 5px; }
+    .ecard-head { font-weight: bold; margin-bottom: 3px; }
+    .ecard-row  { display: flex; justify-content: space-between; color: var(--muted); }
+    .ecard-row b { color: var(--text); }
+
+    /* ── Log feed ── */
+    #log-wrap {
+      grid-column: 1 / -1; grid-row: 3;
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 4px 12px;
+    }
+    #log-feed { font-size: 11px; line-height: 1.55; }
+    .ll { white-space: pre; }
+    .ll.INF { color: #8b949e; }
+    .ll.DBG { color: #3d444d; }
+    .ll.WRN { color: #d29922; }
+    .ll.ERR { color: #f85149; }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────── -->
+<div id="header">
+  <div id="conn-dot"></div>
+  <h1>Elevator Simulator</h1>
+  <div id="header-meta">
+    <span>Tick&nbsp;<b id="h-tick">—</b></span>
+    <span>Sched&nbsp;<b id="h-sched">—</b></span>
+    <span>Queue&nbsp;<b id="h-queue">—</b></span>
+  </div>
+</div>
+
+<!-- ── Building SVG ────────────────────────────────────── -->
+<div id="building-wrap">
+  <svg id="building-svg"></svg>
+</div>
+
+<!-- ── Controls ────────────────────────────────────────── -->
+<div id="controls">
+
+  <div class="sect">Scheduler</div>
+  <select id="sel-sched">
+    <option value="look">LOOK — bi-directional scan</option>
+    <option value="fcfs">FCFS — least loaded</option>
+    <option value="sstf">SSTF — nearest elevator</option>
+  </select>
+  <button class="btn" onclick="applyScheduler()">Apply Scheduler</button>
+
+  <div class="sect">Hall Call</div>
+  <input id="inp-floor" type="number" placeholder="Floor" min="0" value="0">
+  <div class="dir-row">
+    <div class="dir-btn sel" id="dir-up"   onclick="setDir('UP')">▲ Up</div>
+    <div class="dir-btn"    id="dir-down"  onclick="setDir('DOWN')">▼ Down</div>
+  </div>
+  <button class="btn hi" onclick="sendRequest()">Submit Request</button>
+
+  <div class="sect">Simulation</div>
+  <button class="btn" onclick="sendStep()">Step  +1 tick&nbsp;&nbsp;[Space]</button>
+  <div class="inline-row">
+    <input id="inp-auto" type="number" value="10" min="1" max="500">
+    <button class="btn" onclick="sendAuto()">Auto-step  [A]</button>
+  </div>
+
+  <div class="sect">Elevators</div>
+  <div id="ecard-wrap"><div style="color:var(--muted);font-size:11px">Waiting for simulator…</div></div>
+
+</div>
+
+<!-- ── Log feed ─────────────────────────────────────────── -->
+<div id="log-wrap"><div id="log-feed"></div></div>
+
+<script>
+'use strict';
+
+// ── Layout constants ──────────────────────────────────────
+const SHAFT_W   = 58;
+const SHAFT_GAP = 10;
+const LEFT_PAD  = 38;   // space for floor labels
+const V_PAD     = 16;   // top/bottom padding inside SVG
+const MAX_LOGS  = 300;
+
+// Elevator state → fill / stroke colours
+const CAR_COL = {
+  IDLE:          { fill: '#1c2128', stroke: '#607d8b' },
+  MOVING:        { fill: '#0d2137', stroke: '#42a5f5' },
+  REPOSITIONING: { fill: '#1a1500', stroke: '#ffb300' },  // amber
+  DOOR_OPEN:     { fill: '#0d2b1c', stroke: '#4caf50' },
+  FAULT:         { fill: '#2c1215', stroke: '#ef5350' },
+};
+
+// ── Module state ──────────────────────────────────────────
+let ws       = null;
+let svgBuilt = false;
+let numFloors = 0, numElevs = 0, floorH = 30;
+let selDir   = 'UP';
+
+// ── WebSocket ─────────────────────────────────────────────
+function connect() {
+  ws = new WebSocket(`ws://${location.host}`);
+
+  ws.onopen = () => {
+    document.getElementById('conn-dot').classList.add('on');
+    addLog({ level: 'INF', tick: 0, message: 'Connected to simulator server' });
+  };
+
+  ws.onclose = () => {
+    document.getElementById('conn-dot').classList.remove('on');
+    addLog({ level: 'WRN', tick: 0, message: 'Disconnected — reconnecting in 2 s…' });
+    setTimeout(connect, 2000);
+  };
+
+  ws.onerror = () => ws.close();
+
+  ws.onmessage = ({ data }) => {
+    let m;
+    try { m = JSON.parse(data); } catch { return; }
+    onMsg(m);
+  };
+}
+
+function send_(obj) {
+  if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
+}
+
+// ── Message handler ───────────────────────────────────────
+function onMsg(m) {
+  switch (m.type) {
+    case 'state':   onState(m); break;
+    case 'log':     addLog(m);  break;
+    case 'metrics':
+      addLog({ level: 'INF', tick: 0,
+        message: `— metrics: ticks=${m.ticks}  requests=${m.totalRequests}  served=${m.totalServed}` });
+      break;
+    case 'exit':
+      addLog({ level: 'ERR', tick: 0, message: `Simulator process exited (code ${m.code})` });
+      break;
+  }
+}
+
+// ── State update ──────────────────────────────────────────
+function onState(m) {
+  // One-time SVG build when we learn the building dimensions
+  if (!svgBuilt && m.numFloors && m.numElevators) {
+    numFloors = m.numFloors;
+    numElevs  = m.numElevators;
+    // Scale floor height: tall buildings scroll, short ones use more space
+    floorH    = Math.min(64, Math.max(18, Math.floor(500 / numFloors)));
+    buildSVG();
+    svgBuilt = true;
+    document.getElementById('inp-floor').max = numFloors - 1;
+  }
+
+  // Header row
+  document.getElementById('h-tick').textContent  = m.tick;
+  document.getElementById('h-sched').textContent = m.scheduler || '—';
+  document.getElementById('h-queue').textContent = m.queueDepth;
+
+  // Elevator cars + stat cards
+  if (svgBuilt && m.elevators) {
+    m.elevators.forEach(updateCar);
+    renderEcards(m.elevators);
+  }
+}
+
+// ── SVG building renderer ─────────────────────────────────
+function ns(tag, attrs) {
+  const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+  return el;
+}
+
+// Y coordinate of the top of a floor cell (floor 0 = bottom).
+function fy(floor) {
+  return V_PAD + (numFloors - 1 - floor) * floorH;
+}
+
+function buildSVG() {
+  const carH = Math.max(10, floorH - 4);
+  const carW = SHAFT_W - 8;
+  const svgH = numFloors * floorH + V_PAD * 2;
+  const svgW = LEFT_PAD + numElevs * (SHAFT_W + SHAFT_GAP) + 8;
+  const svg  = document.getElementById('building-svg');
+
+  svg.setAttribute('width',   svgW);
+  svg.setAttribute('height',  svgH);
+  svg.setAttribute('viewBox', `0 0 ${svgW} ${svgH}`);
+  svg.innerHTML = '';
+
+  // Store floor height for update calls
+  svg.dataset.floorH = floorH;
+  svg.dataset.carH   = carH;
+  svg.dataset.carW   = carW;
+
+  // ── Floor grid lines and labels ──
+  const labelEvery = floorH >= 28 ? 1 : floorH >= 14 ? 5 : 10;
+
+  for (let f = 0; f < numFloors; f++) {
+    const y = fy(f);
+
+    // Separator line at the bottom of each floor cell
+    svg.appendChild(ns('line', {
+      x1: LEFT_PAD - 2, y1: y + floorH,
+      x2: svgW - 2,     y2: y + floorH,
+      stroke: '#21262d', 'stroke-width': 0.5,
+    }));
+
+    // Floor label (every N floors to avoid clutter)
+    if (f % labelEvery === 0 || f === numFloors - 1) {
+      const t = ns('text', {
+        x: LEFT_PAD - 5,
+        y: y + floorH / 2 + Math.min(4, floorH * 0.3),
+        'text-anchor': 'end',
+        fill: '#484f58',
+        'font-size': Math.min(10, floorH * 0.48),
+        'font-family': 'Courier New, monospace',
+      });
+      t.textContent = f;
+      svg.appendChild(t);
+    }
+  }
+
+  // ── Elevator shafts ──
+  for (let i = 0; i < numElevs; i++) {
+    const sx = LEFT_PAD + i * (SHAFT_W + SHAFT_GAP);
+
+    // Column heading
+    const lbl = ns('text', {
+      x: sx + SHAFT_W / 2, y: V_PAD - 4,
+      'text-anchor': 'middle',
+      fill: '#8b949e',
+      'font-size': 10,
+      'font-family': 'Courier New, monospace',
+    });
+    lbl.textContent = `E${i}`;
+    svg.appendChild(lbl);
+
+    // Shaft background
+    svg.appendChild(ns('rect', {
+      x: sx, y: V_PAD,
+      width: SHAFT_W, height: numFloors * floorH,
+      fill: '#0d1117', stroke: '#21262d', 'stroke-width': 1, rx: 2,
+    }));
+
+    // Pending-stop dots group (children replaced on each state update)
+    svg.appendChild(ns('g', { id: `stops-${i}` }));
+
+    // ── Elevator car group ──
+    // The group is repositioned via CSS transform (animated by transition).
+    // Internal elements use y=0 as the top of the floor cell.
+    const cg = ns('g', { id: `car-${i}` });
+
+    // Car body
+    cg.appendChild(ns('rect', {
+      id: `crect-${i}`,
+      x: sx + 4, y: 2,
+      width: carW, height: carH,
+      fill:   CAR_COL.IDLE.fill,
+      stroke: CAR_COL.IDLE.stroke,
+      'stroke-width': 1.5, rx: 2,
+    }));
+
+    // Current floor number (centred in the car)
+    const ftxt = ns('text', {
+      id: `ctxt-${i}`,
+      x: sx + SHAFT_W / 2,
+      y: 2 + carH / 2 + Math.min(4, carH * 0.3),
+      'text-anchor': 'middle',
+      fill: '#c9d1d9',
+      'font-size': Math.min(11, carH * 0.52),
+      'font-family': 'Courier New, monospace',
+    });
+    ftxt.textContent = '0';
+    cg.appendChild(ftxt);
+
+    // Direction arrow (top-right of car)
+    const dtxt = ns('text', {
+      id: `cdir-${i}`,
+      x: sx + SHAFT_W - 7,
+      y: 2 + Math.min(11, carH * 0.65),
+      'text-anchor': 'middle',
+      fill: '#8b949e',
+      'font-size': Math.min(9, carH * 0.45),
+      'font-family': 'Courier New, monospace',
+    });
+    dtxt.textContent = '';
+    cg.appendChild(dtxt);
+
+    svg.appendChild(cg);
+
+    // Start at floor 0
+    cg.style.transform = `translateY(${fy(0)}px)`;
+  }
+}
+
+// ── Car position / appearance updater ─────────────────────
+function updateCar(e) {
+  const svg  = document.getElementById('building-svg');
+  const fh   = +svg.dataset.floorH || floorH;
+  const col  = CAR_COL[e.state] || CAR_COL.IDLE;
+  const sx   = LEFT_PAD + e.id * (SHAFT_W + SHAFT_GAP);
+  const dotR = Math.max(3, Math.min(5, fh * 0.18));
+
+  // Smooth movement via CSS transition (translateY in SVG user units = px at 1:1 scale)
+  const cg = document.getElementById(`car-${e.id}`);
+  if (cg) cg.style.transform = `translateY(${fy(e.floor)}px)`;
+
+  // Colour reflects state
+  const rect = document.getElementById(`crect-${e.id}`);
+  if (rect) {
+    rect.setAttribute('fill',   col.fill);
+    rect.setAttribute('stroke', col.stroke);
+  }
+
+  // Floor number
+  const ftxt = document.getElementById(`ctxt-${e.id}`);
+  if (ftxt) ftxt.textContent = e.floor;
+
+  // Direction indicator
+  const dtxt = document.getElementById(`cdir-${e.id}`);
+  if (dtxt) dtxt.textContent = e.direction === 'UP' ? '▲' : e.direction === 'DOWN' ? '▼' : '';
+
+  // Pending-stop dots (orange circles along the right edge of the shaft)
+  const sg = document.getElementById(`stops-${e.id}`);
+  if (sg) {
+    sg.innerHTML = '';
+    e.stops.forEach(f => {
+      sg.appendChild(ns('circle', {
+        cx: sx + SHAFT_W - 6,
+        cy: fy(f) + fh / 2,
+        r:  dotR,
+        fill: '#f0a500',
+      }));
+    });
+  }
+}
+
+// ── Elevator stat cards ───────────────────────────────────
+function renderEcards(elevators) {
+  const wrap = document.getElementById('ecard-wrap');
+  wrap.innerHTML = '';
+  elevators.forEach(e => {
+    const col = (CAR_COL[e.state] || CAR_COL.IDLE).stroke;
+    const d   = document.createElement('div');
+    d.className = 'ecard';
+    d.innerHTML = `
+      <div class="ecard-head" style="color:${col}">E${e.id} &mdash; ${e.state}</div>
+      <div class="ecard-row"><span>Floor</span><b>${e.floor}</b></div>
+      <div class="ecard-row"><span>Direction</span><b>${e.direction}</b></div>
+      <div class="ecard-row"><span>dist / pax</span><b>${e.dist} / ${e.pax}</b></div>
+      ${e.stops.length
+        ? `<div class="ecard-row"><span>stops</span><b>[${e.stops.join(' ')}]</b></div>`
+        : ''}
+    `;
+    wrap.appendChild(d);
+  });
+}
+
+// ── Log feed ──────────────────────────────────────────────
+function addLog(m) {
+  const feed = document.getElementById('log-feed');
+  const d    = document.createElement('div');
+  d.className = `ll ${m.level || 'INF'}`;
+  d.textContent = `[T${String(m.tick || 0).padStart(4, '0')}][${m.level || 'INF'}] ${m.message}`;
+  feed.appendChild(d);
+  // Keep log bounded
+  while (feed.children.length > MAX_LOGS) feed.removeChild(feed.firstChild);
+  // Scroll to bottom
+  const wrap = document.getElementById('log-wrap');
+  wrap.scrollTop = wrap.scrollHeight;
+}
+
+// ── Control actions ───────────────────────────────────────
+function setDir(d) {
+  selDir = d;
+  document.getElementById('dir-up').classList.toggle('sel',   d === 'UP');
+  document.getElementById('dir-down').classList.toggle('sel', d === 'DOWN');
+}
+
+function sendRequest() {
+  const f = parseInt(document.getElementById('inp-floor').value, 10);
+  if (isNaN(f)) return;
+  send_({ type: 'request', floor: f, direction: selDir });
+}
+
+function sendStep()  { send_({ type: 'step' }); }
+function sendAuto()  { send_({ type: 'auto', n: +document.getElementById('inp-auto').value || 10 }); }
+
+function applyScheduler() {
+  const name = document.getElementById('sel-sched').value;
+  send_({ type: 'scheduler', name });
+}
+
+// ── Keyboard shortcuts ────────────────────────────────────
+document.addEventListener('keydown', ev => {
+  if (['INPUT', 'SELECT', 'TEXTAREA'].includes(ev.target.tagName)) return;
+  if (ev.key === ' ' || ev.key === 's') { ev.preventDefault(); sendStep(); }
+  if (ev.key === 'a') sendAuto();
+  if (ev.key === 'r') document.getElementById('inp-floor').focus();
+});
+
+// ── Bootstrap ─────────────────────────────────────────────
+connect();
+</script>
+</body>
+</html>

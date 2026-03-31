@@ -73,6 +73,20 @@ static int queue_pop(RequestQueue *q, Request *r)
     return 0;
 }
 
+/* ── reposition_target ───────────────────────────────────── */
+/* Even zone distribution: elevator id targets the centre floor of its
+   zone when num_elevators divide num_floors equally.
+   FCFS, LOOK, and SSTF all share this heuristic since their scheduling
+   algorithms are position-agnostic at the zone level. */
+static int reposition_target(int id, int num_floors, int num_elevators)
+{
+    int zone   = num_floors / num_elevators;
+    if (zone < 1) zone = 1;
+    int target = id * zone + zone / 2;
+    if (target >= num_floors) target = num_floors - 1;
+    return target;
+}
+
 /* ── building_request ────────────────────────────────────── */
 int building_request(Building *b, int floor, Direction dir)
 {
@@ -118,6 +132,25 @@ void building_tick(Building *b)
     for (int i = 0; i < b->config.num_elevators; i++) {
         int served = elevator_tick(&b->elevators[i]);
         b->total_served += served;
+    }
+
+    /* 4. Trigger idle repositioning for qualifying elevators.
+     *    Checked after elevator_tick() so newly-idled elevators
+     *    start counting from the next tick. */
+    for (int i = 0; i < b->config.num_elevators; i++) {
+        Elevator *e = &b->elevators[i];
+        if (e->state      == ELEV_IDLE
+                && !elevator_has_stops(e)
+                && e->idle_ticks >= IDLE_REPOSITION_TICKS) {
+            int target = reposition_target(i,
+                                           b->config.num_floors,
+                                           b->config.num_elevators);
+            if (target != e->current_floor) {
+                elevator_start_reposition(e, target);
+            } else {
+                e->idle_ticks = 0;   /* already at zone centre; reset */
+            }
+        }
     }
 
     b->tick++;

@@ -498,6 +498,118 @@ static void test_integration_multi_request(void)
 }
 
 /* ═══════════════════════════════════════════════════════════
+ * Idle-repositioning tests
+ * ═══════════════════════════════════════════════════════════ */
+
+static void test_reposition_idle_ticks_increment(void)
+{
+    TEST_BEGIN("reposition: idle_ticks increments each tick with no stops");
+    Elevator e;
+    elevator_init(&e, 0);
+    elevator_tick(&e);
+    elevator_tick(&e);
+    elevator_tick(&e);
+    ASSERT_EQ(e.idle_ticks, 3);
+    ASSERT_EQ(e.state, ELEV_IDLE);
+    TEST_PASS();
+}
+
+static void test_reposition_idle_ticks_reset_on_stop(void)
+{
+    TEST_BEGIN("reposition: idle_ticks resets to 0 when a stop is assigned");
+    Elevator e;
+    elevator_init(&e, 0);
+    /* Accumulate 5 idle ticks */
+    for (int i = 0; i < 5; i++) elevator_tick(&e);
+    ASSERT_EQ(e.idle_ticks, 5);
+    /* Assign a stop and tick once to trigger IDLE->MOVING transition */
+    elevator_add_stop(&e, 3);
+    elevator_tick(&e);
+    ASSERT_EQ(e.idle_ticks, 0);
+    ASSERT_EQ(e.state, ELEV_MOVING);
+    TEST_PASS();
+}
+
+static void test_reposition_start_sets_state(void)
+{
+    TEST_BEGIN("reposition: elevator_start_reposition sets REPOSITIONING state");
+    Elevator e;
+    elevator_init(&e, 0);
+    elevator_start_reposition(&e, 5);
+    ASSERT_EQ(e.state, ELEV_REPOSITIONING);
+    ASSERT_EQ(e.target_floor, 5);
+    ASSERT_EQ(e.direction, DIR_UP);
+    ASSERT_EQ(e.idle_ticks, 0);
+    TEST_PASS();
+}
+
+static void test_reposition_moves_toward_target(void)
+{
+    TEST_BEGIN("reposition: REPOSITIONING advances one floor per tick");
+    Elevator e;
+    elevator_init(&e, 0);
+    elevator_start_reposition(&e, 3);
+    elevator_tick(&e);
+    ASSERT_EQ(e.current_floor, 1);
+    ASSERT_EQ(e.state, ELEV_REPOSITIONING);
+    ASSERT_EQ(e.total_distance, 1);
+    TEST_PASS();
+}
+
+static void test_reposition_completes_to_idle(void)
+{
+    TEST_BEGIN("reposition: elevator returns to ELEV_IDLE on arrival at target");
+    Elevator e;
+    elevator_init(&e, 0);
+    e.current_floor = 2;
+    elevator_start_reposition(&e, 3);
+    elevator_tick(&e);   /* moves from 2 to 3, arrives */
+    ASSERT_EQ(e.current_floor, 3);
+    ASSERT_EQ(e.state, ELEV_IDLE);
+    ASSERT_EQ(e.direction, DIR_IDLE);
+    ASSERT_EQ(e.idle_ticks, 0);
+    TEST_PASS();
+}
+
+static void test_reposition_abandoned_when_stop_assigned(void)
+{
+    TEST_BEGIN("reposition: real stop preempts repositioning");
+    Elevator e;
+    elevator_init(&e, 0);
+    elevator_start_reposition(&e, 8);   /* heading far up */
+    elevator_tick(&e);                  /* now at floor 1 */
+    ASSERT_EQ(e.current_floor, 1);
+    elevator_add_stop(&e, 2);           /* real stop assigned */
+    elevator_tick(&e);                  /* abandon: switch to MOVING toward 2 */
+    ASSERT_EQ(e.state, ELEV_MOVING);
+    ASSERT_EQ(e.target_floor, 2);
+    ASSERT_EQ(e.idle_ticks, 0);
+    TEST_PASS();
+}
+
+static void test_reposition_triggered_by_building_tick(void)
+{
+    TEST_BEGIN("building: idle elevator repositions after IDLE_REPOSITION_TICKS ticks");
+    SimConfig cfg = (SimConfig)DEFAULT_CONFIG;
+    cfg.num_floors    = 10;
+    cfg.num_elevators = 1;
+    Building b;
+    building_init(&b, &cfg);
+
+    /* Run exactly IDLE_REPOSITION_TICKS ticks with no requests */
+    for (int i = 0; i < IDLE_REPOSITION_TICKS; i++)
+        building_tick(&b);
+
+    /* Elevator 0 should now be repositioning.
+     * zone = 10/1 = 10, target = 0*10 + 10/2 = 5 */
+    ASSERT_EQ(b.elevators[0].state, ELEV_REPOSITIONING);
+    ASSERT_EQ(b.elevators[0].target_floor, 5);
+
+    building_destroy(&b);
+    TEST_PASS();
+}
+
+/* ═══════════════════════════════════════════════════════════
  * Test registry & runner
  * ═══════════════════════════════════════════════════════════ */
 
@@ -539,6 +651,14 @@ static const TestFn all_tests[] = {
     test_building_queue_full,
     /* Integration */
     test_integration_multi_request,
+    /* Idle repositioning */
+    test_reposition_idle_ticks_increment,
+    test_reposition_idle_ticks_reset_on_stop,
+    test_reposition_start_sets_state,
+    test_reposition_moves_toward_target,
+    test_reposition_completes_to_idle,
+    test_reposition_abandoned_when_stop_assigned,
+    test_reposition_triggered_by_building_tick,
 };
 
 int main(void)

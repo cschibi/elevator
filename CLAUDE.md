@@ -39,12 +39,19 @@ One tick = one floor of travel. Door dwell = `DOOR_DWELL_TICKS` (default: 2 tick
 
 ```
 ELEV_IDLE ──(stop added)──► ELEV_MOVING ──(arrive at stop)──► ELEV_DOOR_OPEN
-    ▲                              ▲                                  │
-    └──(no more stops)─────────────┴──────────(dwell expires)────────┘
+    ▲    ╲                         ▲                                  │
+    │     (idle≥IDLE_REPOSITION    └──────────(dwell expires)────────┘
+    │      _TICKS, no stops)
+    │          ▼
+    └──── ELEV_REPOSITIONING ──(stop assigned)──► ELEV_MOVING
+               │
+               └──(arrived at zone centre)──► ELEV_IDLE
 ELEV_FAULT  ←─── set e->state = ELEV_FAULT to take elevator out of service
 ```
 
 Pending stops are tracked as a bitmask (`e->stops[floor]`). Direction is inferred from the lowest/highest set bit relative to current floor.
+
+Each elevator tracks `idle_ticks` (increments every tick in `ELEV_IDLE` with no stops). After `IDLE_REPOSITION_TICKS` (default 10), `building_tick()` calls `elevator_start_reposition()` to move the elevator to its even-zone target floor. Repositioning is abandoned (state → `ELEV_MOVING`) the moment any real stop is assigned.
 
 ### Scheduler strategy pattern
 

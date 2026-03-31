@@ -8,3 +8,6 @@ elevator_test
 
 # Archives
 *.zip
+
+# Node
+elevator_ui/node_modules/
