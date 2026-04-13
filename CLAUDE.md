@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 make              # build ./elevator_sim (default)
-make test         # build & run all 30 unit tests → ./elevator_test
+make test         # build & run all 37 unit tests → ./elevator_test
 make all          # build simulator AND run tests
 make clean        # remove objects, binaries, elevator.log
 
@@ -18,7 +18,43 @@ make clean        # remove objects, binaries, elevator.log
 ./elevator_sim --tick-ms 200               # auto-paced ticks
 ```
 
-There is no way to run a single test — the harness always runs all 30 tests.
+There is no way to run a single test — the harness always runs all 37 tests.
+
+---
+
+## UI Server
+
+A Node.js WebSocket server lives in `elevator_ui/`:
+
+```bash
+cd elevator_ui && node server.js   # starts on http://localhost:8080
+```
+
+The server spawns `../elevator_sim` as a child process, relays commands to its stdin, parses its stdout, and broadcasts JSON state updates to all connected browser clients over WebSocket.
+
+**Key files:**
+- `elevator_ui/server.js` — HTTP + WebSocket server, sim process management, state parser
+- `elevator_ui/elevator_ui.html` — single-page frontend (SVG building, controls, log feed)
+
+**WebSocket message types (client → server):**
+
+| Type | Payload | Effect |
+|------|---------|--------|
+| `step` | — | Step sim one tick |
+| `auto` | `{ n }` | Step sim N ticks |
+| `request` | `{ floor, direction }` | Submit hall call |
+| `scheduler` | `{ name }` | Swap scheduler |
+| `startRandom` | — | Start request randomization |
+| `stopRandom` | — | Stop request randomization |
+
+### Request Randomization
+
+Activated via the **▶ Start Randomization** button in the UI. Every 3 seconds the server:
+1. Checks queue depth — stops automatically if `queueDepth >= 100`
+2. Picks a random floor (0 .. `numFloors-1`) with constrained direction: floor 0 → always UP, top floor → always DOWN, all others 50/50
+3. Enqueues `r <floor> <dir>`, `s` (tick), `p` (print) so the UI updates in real time
+
+The **■ Stop Randomization** button (or the auto-stop at queue depth 100) cancels the interval and resets the button state. `MAX_REQUESTS` in `config.h` is set to 128 to accommodate the 100-item threshold.
 
 ---
 
