@@ -105,6 +105,10 @@
     .btn:hover { background: var(--border); }
     .btn.hi { background: #1f6feb; border-color: #1f6feb; color: #fff; }
     .btn.hi:hover { background: #388bfd; }
+    .btn.rand-start { background: #1b3a1b; border-color: #4caf50; color: #4caf50; }
+    .btn.rand-start:hover { background: #223d22; }
+    .btn.rand-stop  { background: #3a1b1b; border-color: #ef5350; color: #ef5350; }
+    .btn.rand-stop:hover  { background: #3d2020; }
 
     .dir-row { display: flex; gap: 6px; }
     .dir-btn {
@@ -190,6 +194,10 @@
   </div>
   <button class="btn hi" onclick="sendRequest()">Submit Request</button>
 
+  <div class="sect">Randomization</div>
+  <button id="rand-btn" class="btn rand-start" onclick="toggleRandom()">&#9654; Start Randomization</button>
+  <div id="rand-status" style="font-size:11px;color:var(--muted);margin-top:2px;min-height:14px;"></div>
+
   <div class="sect">Simulation</div>
   <button class="btn" onclick="sendStep()">Step  +1 tick&nbsp;&nbsp;[Space]</button>
   <div class="inline-row">
@@ -229,6 +237,7 @@ let ws       = null;
 let svgBuilt = false;
 let numFloors = 0, numElevs = 0, floorH = 30;
 let selDir   = 'UP';
+let randActive = false;
 
 // ── WebSocket ─────────────────────────────────────────────
 function connect() {
@@ -270,6 +279,7 @@ function onMsg(m) {
     case 'exit':
       addLog({ level: 'ERR', tick: 0, message: `Simulator process exited (code ${m.code})` });
       break;
+    case 'randomStatus': onRandomStatus(m); break;
   }
 }
 
@@ -524,6 +534,28 @@ function sendAuto()  { send_({ type: 'auto', n: +document.getElementById('inp-au
 function applyScheduler() {
   const name = document.getElementById('sel-sched').value;
   send_({ type: 'scheduler', name });
+}
+
+// ── Randomization ─────────────────────────────────────────
+function toggleRandom() {
+  send_({ type: randActive ? 'stopRandom' : 'startRandom' });
+}
+
+function onRandomStatus(m) {
+  randActive = m.active;
+  const btn    = document.getElementById('rand-btn');
+  const status = document.getElementById('rand-status');
+  if (m.active) {
+    btn.textContent = '\u25a0 Stop Randomization';
+    btn.className   = 'btn rand-stop';
+    status.textContent = 'Injecting random requests every 3 s\u2026';
+  } else {
+    btn.textContent = '\u25b6 Start Randomization';
+    btn.className   = 'btn rand-start';
+    status.textContent = m.reason === 'queue_full'
+      ? 'Stopped \u2014 queue reached 100 items'
+      : '';
+  }
 }
 
 // ── Keyboard shortcuts ────────────────────────────────────

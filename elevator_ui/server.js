@@ -16,6 +16,12 @@ let rawBuf   = '';
 let simReady = false;
 let cmdQueue = [];
 
+// ── Randomization state ───────────────────────────────────
+let randActive     = false;
+let randTimer      = null;
+let lastQueueDepth = 0;
+let lastNumFloors  = 90;
+
 // Parsing context — updated as stdout lines arrive
 const ctx = {
   numFloors:    null,
@@ -113,6 +119,8 @@ function parseLine(raw) {
       const m = line.match(/Queue depth:\s*(\d+)/);
       if (m) {
         ctx.queueDepth = +m[1];
+        lastQueueDepth = ctx.queueDepth;
+        if (ctx.numFloors) lastNumFloors = ctx.numFloors;
         broadcast({
           type:         'state',
           tick:         ctx.tick,
@@ -182,6 +190,38 @@ function processNext() {
   const cmd = cmdQueue.shift();
   simReady  = false;
   sim.stdin.write(cmd + '\n');
+}
+
+// ── Request randomization ─────────────────────────────────
+function doRandomRequest() {
+  if (lastQueueDepth >= 100) {
+    stopRandomization();
+    broadcast({ type: 'randomStatus', active: false, reason: 'queue_full' });
+    return;
+  }
+  const floor = Math.floor(Math.random() * lastNumFloors);
+  let dir;
+  if      (floor === 0)                  dir = 'u';
+  else if (floor === lastNumFloors - 1)  dir = 'd';
+  else                                   dir = Math.random() < 0.5 ? 'u' : 'd';
+  enqueue(`r ${floor} ${dir}`);
+  enqueue('s');
+  enqueue('p');
+}
+
+function startRandomization() {
+  if (randActive) return;
+  randActive = true;
+  broadcast({ type: 'randomStatus', active: true });
+  randTimer = setInterval(doRandomRequest, 3000);
+}
+
+function stopRandomization() {
+  if (!randTimer) return;
+  clearInterval(randTimer);
+  randTimer  = null;
+  randActive = false;
+  broadcast({ type: 'randomStatus', active: false });
 }
 
 // ── Spawn simulator ───────────────────────────────────────
@@ -256,6 +296,12 @@ wss.on('connection', ws => {
         break;
       case 'status':
         enqueue('p');
+        break;
+      case 'startRandom':
+        startRandomization();
+        break;
+      case 'stopRandom':
+        stopRandomization();
         break;
     }
   });
